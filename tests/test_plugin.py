@@ -10,8 +10,17 @@ class SomeUnitTest(unittest.TestCase):
     def linenumtest_some_test_1(self):
         pass
 
-
     def linenumtest_some_test_2(self):
+        pass
+
+
+class UnitTestsWithEmptyLines(unittest.TestCase):
+
+    def linenumtest_without_empty_line(self):
+        pass
+
+    def linenumtest_with_empty_line(self):
+
         pass
 
 
@@ -19,6 +28,7 @@ class AnotherUnitTest(unittest.TestCase):
 
     def linenumtest_some_test_1(self):
         pass
+
 
 class TestNoseLinePlugin(PluginTester, unittest.TestCase):
     activate = '--line-file'
@@ -53,6 +63,12 @@ class TestNoseLinePlugin(PluginTester, unittest.TestCase):
     def test_run_line_before_any_method_definitions_skips_test(self):
         self._run_test_on_line(1)
         self.assertIn("Ran 0 tests", self.output)
+        self.assertIn("OK", self.output)
+
+    def test_run_line_inside_method_on_empty_line(self):
+        lines, lineno = inspect.getsourcelines(UnitTestsWithEmptyLines.linenumtest_with_empty_line)
+        self._run_test_on_line(lineno + 1)
+        self.assertIn("Ran 1 test", self.output)
         self.assertIn("OK", self.output)
 
 

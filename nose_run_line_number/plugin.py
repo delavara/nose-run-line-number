@@ -7,6 +7,7 @@ from nose.plugins import Plugin
 
 log = logging.getLogger('nose.plugins.runlinenumber')
 
+
 class MethodFinder(ast.NodeVisitor):
     def __init__(self, line_to_match, test_pattern, level):
         self.matched_function = None
@@ -19,28 +20,22 @@ class MethodFinder(ast.NodeVisitor):
 
     def visit_ClassDef(self, node):
         self.current_class = node.name
-        self.generic_visit(node)
+
+        last_line_of_class = node.body[-1].lineno
+        for line_no in range(node.lineno, last_line_of_class + 1):
+            self.class_lines[line_no] = self.current_class
+
+        super(MethodFinder, self).generic_visit(node)
 
     def visit_FunctionDef(self, node):
         if self.test_pattern.match(node.name):
             self.current_function = node.name
 
-        self.generic_visit(node)
-
-    def generic_visit(self, node):
-        current_line_num = getattr(node, 'lineno', -1)
-        if self.line_to_match == current_line_num and hasattr(self, 'current_function'):
-            self.matched_function = self.current_function
-        elif current_line_num > 0 and hasattr(self, 'current_function'):
-            self.function_lines[current_line_num] = self.current_function
-
-        if self.line_to_match == current_line_num and hasattr(self, 'current_class'):
-            self.matched_class = self.current_class
-        elif current_line_num > 0 and hasattr(self, 'current_class'):
-            self.class_lines[current_line_num] = self.current_class
+        last_line_of_fun = node.body[0].lineno
+        for line_no in range(node.lineno, last_line_of_fun + 1):
+            self.function_lines[line_no] = self.current_function
 
         super(MethodFinder, self).generic_visit(node)
-
 
 class RunLineNumber(Plugin):
     name = 'runlinenumber'
@@ -77,14 +72,16 @@ class RunLineNumber(Plugin):
             self.testMatch = conf.testMatch
             finder = MethodFinder(linenum, conf.testMatch, options.level)
             finder.visit(ast_node)
-            self.matched_function = finder.matched_function
-            self.matched_class = finder.matched_class
+
+            self.matched_function = finder.function_lines.get(linenum)
+            self.matched_class = finder.class_lines.get(linenum)
             while linenum > 0:
                 linenum -= 1
                 if self.matched_function is None:
                     self.matched_function = finder.function_lines.get(linenum)
                 if self.matched_class is None:
                     self.matched_class = finder.class_lines.get(linenum)
+
             log.info("Matched function: %s with line %d" % (self.matched_function, options.linenum))
 
     def findTestName(self, testNames):
